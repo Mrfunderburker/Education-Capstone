@@ -2,6 +2,7 @@ from database import connection
 import pandas as pd
 import numpy as np
 
+
 def extract_csv():
     """
     load csv files
@@ -24,7 +25,6 @@ def transform_attendance(attendance):
       if "#" in col:
         attendance[col] = attendance[col].astype("Int64")
 
-    # Create a boolean DataFrame indicating where 's' is present in any cell for attendance dataset
     # The .any(axis=1) checks if 's' is present in at least one column for each row
     rows_with_s_across_columns = attendance.isin(['s']).any(axis=1)
     # Filter the DataFrame to get only those rows
