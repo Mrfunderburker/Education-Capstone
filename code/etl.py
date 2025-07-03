@@ -231,7 +231,7 @@ def load_postgres(df, table_name):
             cursor.execute(insert_into, values)
 
     elif table_name == "regents":
-        insert_into == """
+        insert_into = """
         INSERT INTO "regents"
         ("regents_exam", "borough", "category_name", "test_year", "total_tested", "mean_score",
         "number_scoring_below_60", "percent_scoring_below_60", "number_scoring_above_80",
