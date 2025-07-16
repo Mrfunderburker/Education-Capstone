@@ -46,7 +46,13 @@ def transform_attendance(attendance):
     "# Chronically Absent": "chronically_absent_count",
     "% Chronically Absent": "chronically_absent_percent"
     })
+  
+    # Create start year column 
+    attendance["year"] = attendance["academic_year_id"].str[:4]
 
+    # Drop unnecesary columns
+    attendance = attendance.drop(["total_days", "days_absent_count", "contributing_10plus_total_days_and_1plus_pres_day", "chronically_absent_percent", "days_present_count"], axis=1)
+    
     return attendance
 
 
@@ -87,7 +93,7 @@ def transform_graduation(graduation):
     graduation = graduation.rename(columns={
     "Borough": "borough",
     "Cohort": "cohort_name", 
-    "Cohort Year": "cohort_year",
+    "Cohort Year": "year",
     "Category": "category_name",
     "# Total Cohort": "total_cohort",
     "# Grads": "grad_count",
@@ -113,8 +119,11 @@ def transform_graduation(graduation):
     "# TASC (GED)": "tasc_ged_count",
     "% TASC (GED) of Cohort": "tasc_ged_percent",
     "Graduation Year": "grad_year",
-})
-
+    })
+    
+    # Select columns i only want to keep 
+    graduation = graduation[["borough", "category_name", "advanced_regents_grads_percent", "dropout_count", "dropout_percent", "grad_year", "year"]]
+    
     return graduation
 
 
@@ -163,7 +172,7 @@ def transform_regents(regents):
     "Regents Exam": "regents_exam",
     "Borough": "borough",
     "Category": "category_name",
-    "Year": "test_year",
+    "Year": "year",
     "Total Tested": "total_tested",
     "Mean Score": "mean_score",
     "Number Scoring Below 65": "number_scoring_below_60",
@@ -173,85 +182,24 @@ def transform_regents(regents):
     "Number Scoring 65 or Above": "number_scoring_cr",
     "Percent Scoring 65 or Above": "percent_scoring_cr"
     })
+    
+    # Select columns I only want to keep
+    regents = regents[["regents_exam", "borough", "category_name", "year", "total_tested", "mean_score", "number_scoring_below_60", "percent_scoring_below_60", "number_scoring_above_80", "percent_scoring_above_80"]]
 
     return regents
 
-
-def load_postgres(df, table_name):
+def merge_export(attendance, graduation, regents):
     """
-    Insert cleaned data into PostgreSQL table.
+    Merge the cleaned datasets on 'borough' and export to CSV.
     """
-    conn = connection()
-    cursor = conn.cursor()
+    # Merge on borough, year, and category_name
+    merged_df = pd.merge(attendance, graduation, on=["borough", "year", "category_name"], how="inner")
+    merged_df = pd.merge(merged_df, regents, on=["borough", "year", "category_name"], how="inner")
 
-    # Prepare and insert data row by row
-    if table_name == "attendance_and_absenteeism":
-        insert_into = """
-        INSERT INTO "attendance_and_absenteeism" 
-        ("borough", "grade", "category_name", "academic_year_id", "total_days", "days_absent_count", 
-        "days_present_count", "attendance_percent", "contributing_10plus_total_days_and_1plus_pres_day", 
-        "chronically_absent_count", "chronically_absent_percent")
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
+    # Export CSV
+    merged_df.to_csv("/Users/sa17/Library/Mobile Documents/com~apple~CloudDocs/Brag Folder/projects/Education-Capstone/data/merged_education_data.csv", index=False)
 
-        for _, row in df.iterrows():
-            values = (
-                row["borough"], row["grade"], row["category_name"], row["academic_year_id"],
-                row["total_days"], row["days_absent_count"], row["days_present_count"],
-                row["attendance_percent"], row["contributing_10plus_total_days_and_1plus_pres_day"],
-                row["chronically_absent_count"], row["chronically_absent_percent"]
-            )
-            cursor.execute(insert_into, values)
-
-    elif table_name == "graduation_data":
-        insert_into = """
-        INSERT INTO "graduation_data" 
-        ("borough", "cohort_name", "cohort_year", "category_name", "total_cohort", "grad_count",
-        "grad_percent", "total_regents_count", "total_regents_percent", "total_regents_grad_percent",
-        "advanced_regents_count", "advanced_regents_percent", "advanced_regents_grads_percent",
-        "regents_without_advanced_count", "regents_without_advanced_percent", "regents_without_advanced_grad_percent",
-        "local_diploma_count", "local_diploma_perc", "percent_local_of_grads",
-        "still_enrolled_count", "still_enrolled_percent", "dropout_count", "dropout_percent",
-        "sacc_iep_diploma_count", "sacc_iep_diploma_percent", "tasc_ged_count", "tasc_ged_percent", "grad_year")
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-
-        for _, row in df.iterrows():
-            values = (
-                row["borough"], row["cohort_name"], row["cohort_year"], row["category_name"], row["total_cohort"],
-                row["grad_count"], row["grad_percent"], row["total_regents_count"], row["total_regents_percent"],
-                row["total_regents_grad_percent"], row["advanced_regents_count"], row["advanced_regents_percent"],
-                row["advanced_regents_grads_percent"], row["regents_without_advanced_count"],
-                row["regents_without_advanced_percent"], row["regents_without_advanced_grad_percent"],
-                row["local_diploma_count"], row["local_diploma_perc"], row["percent_local_of_grads"],
-                row["still_enrolled_count"], row["still_enrolled_percent"], row["dropout_count"], 
-                row["dropout_percent"], row["sacc_iep_diploma_count"], row["sacc_iep_diploma_percent"],
-                row["tasc_ged_count"],row["tasc_ged_percent"], row["grad_year"]
-            )
-            cursor.execute(insert_into, values)
-
-    elif table_name == "regents":
-        insert_into = """
-        INSERT INTO "regents"
-        ("regents_exam", "borough", "category_name", "test_year", "total_tested", "mean_score",
-        "number_scoring_below_60", "percent_scoring_below_60", "number_scoring_above_80",
-        "percent_scoring_above_80", "number_scoring_cr", "percent_scoring_cr") 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        
-        for _, row in df.iterrows():
-            values = (
-                row["regents_exam"], row["borough"], row["category_name"], row["test_year"],row["total_tested"], 
-                row["mean_score"], row["number_scoring_below_60"], row["percent_scoring_below_60"],row["number_scoring_above_80"],
-                row["percent_scoring_above_80"],row["number_scoring_cr"],row["percent_scoring_cr"]
-            )
-            cursor.execute(insert_into, values)
-             
-    # Commit transaction and close connection
-    conn.commit()
-    print(f"{table_name.capitalize()} data successfully loaded to PostgreSQL.")
-    cursor.close()
-    conn.close()
+    return merged_df
 
           
 def main():
@@ -263,11 +211,8 @@ def main():
     clean_graduation = transform_graduation(graduation)
     clean_regents = transform_regents(regents)
 
-    # Load
-    load_postgres(clean_attendance, "attendance_and_absenteeism")
-    load_postgres(clean_graduation, "graduation_data")
-    load_postgres(clean_regents, "regents")
-
+    # Merge
+    merged_df = merge_export(clean_attendance, clean_graduation, clean_regents)
 
 if __name__ == "__main__":
     main()
