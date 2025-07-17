@@ -93,7 +93,7 @@ def transform_graduation(graduation):
     graduation = graduation.rename(columns={
     "Borough": "borough",
     "Cohort": "cohort_name", 
-    "Cohort Year": "year",
+    "Cohort Year": "cohort_year",
     "Category": "category_name",
     "# Total Cohort": "total_cohort",
     "# Grads": "grad_count",
@@ -118,7 +118,7 @@ def transform_graduation(graduation):
     "% SACC (IEP Diploma) of Cohort": "sacc_iep_diploma_percent",
     "# TASC (GED)": "tasc_ged_count",
     "% TASC (GED) of Cohort": "tasc_ged_percent",
-    "Graduation Year": "grad_year",
+    "Graduation Year": "year",
     })
     
     # Select columns i only want to keep 
